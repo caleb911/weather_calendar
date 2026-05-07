@@ -1,0 +1,58 @@
+name: Update Weather ICS
+
+on:
+  schedule:
+    - cron: '15 17,20,23,2,5,8,11,14 * * *'
+  push:
+    paths:
+      - 'update_calendar.py'
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # 🌟 여기에 위치시켜 보겠습니다.
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: pip install requests pytz icalendar
+
+      - name: Run update script
+        env:
+          KMA_API_KEY: ${{ secrets.KMA_API_KEY }}
+          KMA_NX: ${{ secrets.KMA_NX }}
+          KMA_NY: ${{ secrets.KMA_NY }}
+          LOCATION_NAME: ${{ secrets.LOCATION_NAME }}
+          REG_ID_TEMP: ${{ secrets.REG_ID_TEMP }}
+          REG_ID_LAND: ${{ secrets.REG_ID_LAND }}
+          TZ: Asia/Seoul
+        run: python update_calendar.py
+
+      - name: Commit and Push changes
+        run: |
+          KST_TIME=$(TZ='Asia/Seoul' date '+%Y-%m-%d %H:%M:%S')
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add weather.ics
+          if [ -n "$(git status --porcelain)" ]; then
+            git commit -m "Update weather.ics [$KST_TIME KST]"
+            git push
+          else
+            echo "No changes to commit"
+          fi
